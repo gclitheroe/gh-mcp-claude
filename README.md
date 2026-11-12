@@ -19,10 +19,10 @@ Go 1.25 or later.
 From the repository root:
 
 ```sh
-go build -o session_mcp ./cmd/session_mcp
+go build -o bin/ ./cmd/session_mcp
 ```
 
-This writes a `session_mcp` binary to the current directory.
+This writes the binary to `bin/session_mcp`. Go creates the `bin` directory if it doesn't exist, and git ignores it.
 
 ### Install
 
@@ -41,6 +41,14 @@ go install github.com/gclitheroe/gh-mcp-claude/cmd/session_mcp@latest
 Make sure the install directory is on your `PATH`.
 
 ### Run
+
+If you compiled it into `bin/`:
+
+```sh
+./bin/session_mcp
+```
+
+If you installed it:
 
 ```sh
 session_mcp
