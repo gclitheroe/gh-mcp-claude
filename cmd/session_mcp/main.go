@@ -26,22 +26,44 @@ type ghPROutput struct {
 	HTMLURL string `json:"html_url" jsonschema:"the pull request URL taken from tool_response"`
 }
 
-// extractHTMLURL returns the html_url field from a JSON object string. It
-// also accepts the object double-encoded as a JSON string literal, such as
-// "{\"html_url\":\"...\"}" with the outer quotes and escapes still present.
+// extractHTMLURL returns the html_url field from a GitHub tool response. It
+// accepts these forms:
+//
+//   - a JSON object: {"html_url":"..."}
+//   - that object double-encoded as a JSON string literal, with the outer
+//     quotes and escapes still present: "{\"html_url\":\"...\"}"
+//   - an array of MCP content blocks whose text holds the object:
+//     [{"type":"text","text":"{\"html_url\":\"...\"}"}]. This is what a
+//     Claude Code hook passes for ${tool_response} after an MCP tool call.
 func extractHTMLURL(s string) (string, error) {
+	data := []byte(s)
+
+	var inner string
+	if json.Unmarshal(data, &inner) == nil {
+		data = []byte(inner)
+	}
+
+	var blocks []struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(data, &blocks) == nil {
+		for _, b := range blocks {
+			if b.Type != "text" {
+				continue
+			}
+			if url, err := extractHTMLURL(b.Text); err == nil {
+				return url, nil
+			}
+		}
+		return "", errors.New("tool_response has no text content with html_url")
+	}
+
 	var resp struct {
 		HTMLURL string `json:"html_url"`
 	}
-
-	if err := json.Unmarshal([]byte(s), &resp); err != nil {
-		var inner string
-		if json.Unmarshal([]byte(s), &inner) != nil {
-			return "", fmt.Errorf("tool_response is not valid JSON: %w", err)
-		}
-		if err := json.Unmarshal([]byte(inner), &resp); err != nil {
-			return "", fmt.Errorf("tool_response is not valid JSON: %w", err)
-		}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return "", fmt.Errorf("tool_response is not valid JSON: %w", err)
 	}
 
 	if resp.HTMLURL == "" {
@@ -66,7 +88,17 @@ func newServer(logger *slog.Logger) *mcp.Server {
 
 		logger.InfoContext(ctx, "gh_pr", "sessionID", in.SessionID, "html_url", url)
 
-		return nil, ghPROutput{HTMLURL: url}, nil
+		// Reply with plain text rather than the default JSON text content.
+		// Claude Code parses an mcp_tool hook's text reply as hook output,
+		// and a JSON object that isn't valid hook output is reported as an
+		// error. The structured output still carries html_url.
+		res := &mcp.CallToolResult{
+			Content: []mcp.Content{&mcp.TextContent{
+				Text: fmt.Sprintf("logged %s for session %s", url, in.SessionID),
+			}},
+		}
+
+		return res, ghPROutput{HTMLURL: url}, nil
 	})
 
 	return server

@@ -1,0 +1,10 @@
+{
+  "name": "gh-pr-session",
+  "version": "0.1.0",
+  "description": "After the GitHub MCP server creates a pull request, log the PR URL and session ID with the session_mcp server's gh_pr tool.",
+  "author": {
+    "name": "Geoff Clitheroe"
+  },
+  "repository": "https://github.com/gclitheroe/gh-mcp-claude",
+  "license": "Apache-2.0"
+}

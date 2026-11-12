@@ -18,6 +18,9 @@ const (
 	prURL       = "https://github.com/gclitheroe/hello-agent/pull/128"
 	plainJSON   = `{"html_url":"https://github.com/gclitheroe/hello-agent/pull/128","id":"5235365474"}`
 	escapedJSON = `"{\"html_url\":\"https://github.com/gclitheroe/hello-agent/pull/128\",\"id\":\"5235365474\"}"`
+	// contentBlocks is what a Claude Code PostToolUse hook substitutes for
+	// ${tool_response} after an MCP tool call.
+	contentBlocks = `[{"type":"text","text":"{\"html_url\":\"https://github.com/gclitheroe/hello-agent/pull/128\",\"id\":\"5235365474\"}"}]`
 )
 
 func TestExtractHTMLURL(t *testing.T) {
@@ -29,6 +32,13 @@ func TestExtractHTMLURL(t *testing.T) {
 	}{
 		{name: "plain JSON", in: plainJSON, want: prURL},
 		{name: "escaped JSON string", in: escapedJSON, want: prURL},
+		{name: "MCP content blocks", in: contentBlocks, want: prURL},
+		{
+			name: "MCP content blocks after a non-text block",
+			in:   `[{"type":"image","data":"x"},{"type":"text","text":"{\"html_url\":\"https://github.com/gclitheroe/hello-agent/pull/128\"}"}]`,
+			want: prURL,
+		},
+		{name: "MCP content blocks without html_url", in: `[{"type":"text","text":"{\"id\":\"5235365474\"}"}]`, wantErr: true},
 		{name: "missing html_url", in: `{"id":"5235365474"}`, wantErr: true},
 		{name: "invalid JSON", in: `not json`, wantErr: true},
 	}
@@ -110,6 +120,17 @@ func TestGHPRToolOverHTTP(t *testing.T) {
 	}
 	if out.HTMLURL != prURL {
 		t.Errorf("html_url = %q, want %q", out.HTMLURL, prURL)
+	}
+
+	if len(res.Content) != 1 {
+		t.Fatalf("got %d content items, want 1", len(res.Content))
+	}
+	text, ok := res.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("content is %T, want *mcp.TextContent", res.Content[0])
+	}
+	if want := "logged " + prURL + " for session session-123"; text.Text != want {
+		t.Errorf("text content = %q, want %q", text.Text, want)
 	}
 
 	got := logs.String()

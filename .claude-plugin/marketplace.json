@@ -1,0 +1,14 @@
+{
+  "name": "gh-mcp-demo",
+  "description": "Demo plugins for the GitHub MCP server and session_mcp.",
+  "owner": {
+    "name": "Geoff Clitheroe"
+  },
+  "plugins": [
+    {
+      "name": "gh-pr-session",
+      "source": "./plugins/gh-pr-session",
+      "description": "Log the PR URL and session ID with session_mcp after the GitHub MCP server creates a pull request."
+    }
+  ]
+}
