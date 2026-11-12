@@ -1,5 +1,6 @@
-// Command session_mcp runs an HTTP MCP server on port 8080 with a single
-// tool, gh_pr, that logs the session ID and pull request URL it receives.
+// Command session_mcp runs an HTTP MCP server on port 8080. Its tools log
+// session details: gh_pr logs a session's pull request URL, and
+// session_title logs a session's title.
 package main
 
 import (
@@ -10,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -24,6 +26,11 @@ type ghPRInput struct {
 
 type ghPROutput struct {
 	HTMLURL string `json:"html_url" jsonschema:"the pull request URL taken from tool_response"`
+}
+
+type sessionTitleInput struct {
+	SessionID string `json:"sessionID" jsonschema:"the session ID the title belongs to"`
+	Title     string `json:"title" jsonschema:"the session's new title"`
 }
 
 // extractHTMLURL returns the html_url field from a GitHub tool response. It
@@ -99,6 +106,27 @@ func newServer(logger *slog.Logger) *mcp.Server {
 		}
 
 		return res, ghPROutput{HTMLURL: url}, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "session_title",
+		Description: "Log a session's title.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in sessionTitleInput) (*mcp.CallToolResult, any, error) {
+		title := strings.TrimSpace(in.Title)
+		if title == "" {
+			logger.WarnContext(ctx, "session_title", "sessionID", in.SessionID, "error", "empty title")
+			return nil, nil, errors.New("title is empty")
+		}
+
+		logger.InfoContext(ctx, "session_title", "sessionID", in.SessionID, "title", title)
+
+		res := &mcp.CallToolResult{
+			Content: []mcp.Content{&mcp.TextContent{
+				Text: fmt.Sprintf("logged title %q for session %s", title, in.SessionID),
+			}},
+		}
+
+		return res, nil, nil
 	})
 
 	return server

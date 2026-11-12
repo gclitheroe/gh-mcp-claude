@@ -8,7 +8,7 @@
     {
       "name": "gh-pr-session",
       "source": "./plugins/gh-pr-session",
-      "description": "Log the PR URL and session ID with session_mcp after the GitHub MCP server creates a pull request."
+      "description": "Send session details to session_mcp: the PR URL after the GitHub MCP server creates a pull request, and the new title after /rename."
     }
   ]
 }

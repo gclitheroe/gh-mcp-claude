@@ -81,20 +81,75 @@ func (b *syncBuffer) String() string {
 	return b.buf.String()
 }
 
-func TestGHPRToolOverHTTP(t *testing.T) {
-	var logs syncBuffer
-	server := newServer(slog.New(slog.NewTextHandler(&logs, nil)))
+// connect starts session_mcp on a test HTTP server, logging to logs, and
+// returns an MCP client session connected to it.
+func connect(t *testing.T, logs *syncBuffer) *mcp.ClientSession {
+	t.Helper()
 
+	server := newServer(slog.New(slog.NewTextHandler(logs, nil)))
 	ts := httptest.NewServer(mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, nil))
-	defer ts.Close()
+	t.Cleanup(ts.Close)
 
-	ctx := context.Background()
 	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "v0.0.1"}, nil)
-	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: ts.URL + "/mcp"}, nil)
+	session, err := client.Connect(context.Background(), &mcp.StreamableClientTransport{Endpoint: ts.URL + "/mcp"}, nil)
 	if err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	defer session.Close()
+	t.Cleanup(func() { session.Close() })
+
+	return session
+}
+
+func TestSessionTitleToolOverHTTP(t *testing.T) {
+	var logs syncBuffer
+	session := connect(t, &logs)
+	ctx := context.Background()
+
+	res, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "session_title",
+		Arguments: map[string]any{"sessionID": "session-123", "title": "  GH MCP Demo  "},
+	})
+	if err != nil {
+		t.Fatalf("call session_title: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("session_title returned a tool error: %v", res.GetError())
+	}
+
+	if len(res.Content) != 1 {
+		t.Fatalf("got %d content items, want 1", len(res.Content))
+	}
+	text, ok := res.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("content is %T, want *mcp.TextContent", res.Content[0])
+	}
+	if want := `logged title "GH MCP Demo" for session session-123`; text.Text != want {
+		t.Errorf("text content = %q, want %q", text.Text, want)
+	}
+
+	got := logs.String()
+	for _, want := range []string{"session_title", "sessionID=session-123", `title="GH MCP Demo"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("log %q does not contain %q", got, want)
+		}
+	}
+
+	res, err = session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "session_title",
+		Arguments: map[string]any{"sessionID": "session-123", "title": "   "},
+	})
+	if err != nil {
+		t.Fatalf("call session_title with empty title: %v", err)
+	}
+	if !res.IsError {
+		t.Errorf("session_title with empty title: IsError = false, want true")
+	}
+}
+
+func TestGHPRToolOverHTTP(t *testing.T) {
+	var logs syncBuffer
+	session := connect(t, &logs)
+	ctx := context.Background()
 
 	res, err := session.CallTool(ctx, &mcp.CallToolParams{
 		Name: "gh_pr",
