@@ -84,12 +84,19 @@ go test ./...
 `plugins/gh-pr-session` is a Claude Code plugin that sends session details to `session_mcp`. It does two things:
 
 - **New PRs.** A PostToolUse `mcp_tool` hook runs after the GitHub MCP server's `create_pull_request` tool (`mcp__github__create_pull_request`) succeeds. It calls `gh_pr` with the session ID and the tool's response, so the server logs the new PR's URL for that session.
-- **Session titles.** A mod (`hooks/register.ts`) wraps the built-in `/rename` command. After the rename runs, it calls `session_title` with the session ID and the new title. Both are registered in `hooks/hooks.json`, the hook under `hooks` and the mod under `modules`.
+- **Session titles.** A mod (`hooks/register.ts`) calls `session_title` with the session ID and the title whenever the title changes. Both are registered in `hooks/hooks.json`, the hook under `hooks` and the mod under `modules`.
 
-The title is only sent when you type `/rename <title>`. Two kinds of rename aren't sent:
+The mod finds title changes in two ways:
 
-- A bare `/rename`, which picks a name itself, because the command doesn't receive that name.
-- Titles the desktop app sets, both its automatic titles and its own rename, because they don't go through `/rename`.
+- **`/rename <title>`.** The mod wraps the built-in command and sends the title as soon as the rename runs.
+- **The session registry.** Every 5 seconds, the mod rereads the registry file Claude Code keeps for the session, `~/.claude/sessions/<pid>.json` (under `$CLAUDE_CONFIG_DIR` if you've set it). The file's `name` field holds the current title. This picks up titles that don't come from `/rename <title>`: the desktop app's rename, its automatic titles, and a bare `/rename`. They reach the server within about 5 seconds, with no message needed.
+
+Each title is sent once per session, however it was set. If sending fails because the server can't be reached, the next poll tries again.
+
+Some limits:
+
+- The registry file is internal to Claude Code and isn't documented. A Claude Code release could change it, and then only `/rename <title>` would still be sent.
+- Polling starts when the session starts. If you install or update the plugin during a session, titles from the registry are sent from the next session, and a reload of the plugin stops the poll until then.
 
 ### Before you use it
 
@@ -105,7 +112,7 @@ The plugin doesn't install or configure `session_mcp`, so set it up yourself:
    `-s user` makes the server available in every project. Leave it out to add the server for the current project only.
 3. Configure the official GitHub MCP server under the name `github`. Its PR tool is then `mcp__github__create_pull_request`, which the hook matches exactly.
 
-Start `session_mcp` before Claude Code. If `session-mcp` isn't configured, isn't running, or has a different name, nothing is logged, but the PR and the rename still go through. The PR hook reports a non-blocking error, and the mod shows a short notice.
+Start `session_mcp` before Claude Code. If `session-mcp` isn't configured, isn't running, or has a different name, nothing is logged, but the PR and the rename still go through. The PR hook reports a non-blocking error. The mod shows a short notice once for each title it can't send.
 
 ### Install
 
