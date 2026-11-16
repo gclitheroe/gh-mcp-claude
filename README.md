@@ -64,7 +64,7 @@ To install the binary into `$(go env GOPATH)/bin` (or `$GOBIN` if you've set it)
 go install ./cmd/session_mcp
 ```
 
-You can also install it without cloning, once the code is on the repository's default branch:
+You can also install it without cloning:
 
 ```sh
 go install github.com/gclitheroe/gh-mcp-claude/cmd/session_mcp@latest
@@ -145,7 +145,7 @@ claude plugin marketplace add ./
 claude plugin install gh-pr-session@gh-mcp-demo
 ```
 
-Or from GitHub, once this is on the repository's default branch:
+Or from GitHub:
 
 ```sh
 claude plugin marketplace add gclitheroe/gh-mcp-claude
@@ -215,7 +215,7 @@ Start `session_mcp` before Codex. If `session-mcp` isn't configured, isn't runni
    codex plugin marketplace add ./
    ```
 
-   Or from GitHub, once this is on the repository's default branch:
+   Or from GitHub:
 
    ```sh
    codex plugin marketplace add gclitheroe/gh-mcp-claude
