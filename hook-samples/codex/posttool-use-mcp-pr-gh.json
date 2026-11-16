@@ -1,0 +1,27 @@
+{
+  "session_id": "01a1dd3d-6b15-7ae2-8561-9482c24cad1f",
+  "turn_id": "01a1dd3d-9d99-7333-8f64-aed162d42a03",
+  "transcript_path": "/Users/geoffclitheroe/.codex/sessions/2026/11/15/rollout-2026-11-15T16-25-52-01a1dd3d-6b15-7ae2-8561-9482c24cad1f.jsonl",
+  "cwd": "/Users/geoffclitheroe/Projects/hello-agent",
+  "hook_event_name": "PostToolUse",
+  "model": "gpt-6-luna",
+  "permission_mode": "default",
+  "tool_name": "mcp__github__create_pull_request",
+  "tool_input": {
+    "owner": "gclitheroe",
+    "repo": "hello-agent",
+    "head": "test-pr-posttooluse-2026-11-15",
+    "base": "main",
+    "title": "Test GitHub MCP PostToolUse payload logging",
+    "body": "## Purpose\n\nCreate a test pull request through GitHub MCP and capture the exact PostToolUse payload.\n\n## Change\n\n- Add a marker file for this test.\n\n## Validation\n\n- Confirm the pull request was created and the PostToolUse event was logged."
+  },
+  "tool_response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"id\":\"5319074384\",\"url\":\"https://github.com/gclitheroe/hello-agent/pull/142\"}"
+      }
+    ]
+  },
+  "tool_use_id": "exec-8cf4adc1-6817-435a-ad35-5f4702fcb68c"
+}

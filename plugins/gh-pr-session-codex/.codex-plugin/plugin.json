@@ -1,0 +1,11 @@
+{
+  "name": "gh-pr-session-codex",
+  "version": "0.1.0",
+  "description": "Send the PR URL to session_mcp after the GitHub MCP server creates a pull request in Codex.",
+  "author": {
+    "name": "Geoff Clitheroe"
+  },
+  "repository": "https://github.com/gclitheroe/gh-mcp-claude",
+  "license": "Apache-2.0",
+  "keywords": ["github", "mcp", "hooks", "pull-request"]
+}

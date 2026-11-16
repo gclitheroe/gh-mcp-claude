@@ -1,0 +1,33 @@
+{
+  "session_id": "01a1e6b3-296f-7c22-b8f4-644a465aaec8",
+  "turn_id": "01a1e6b3-8223-7a90-9c2b-1ca094ce9ddf",
+  "transcript_path": "/Users/geoffclitheroe/.codex/sessions/2026/11/17/rollout-2026-11-17T10-31-03-01a1e6b3-296f-7c22-b8f4-644a465aaec8.jsonl",
+  "cwd": "/Users/geoffclitheroe/Projects/bbc-demo",
+  "hook_event_name": "PostToolUse",
+  "model": "gpt-6-luna",
+  "permission_mode": "default",
+  "tool_name": "mcp__atlassian__executeWrite",
+  "tool_input": {
+    "cloudId": "45e68d54-b44a-491d-8b94-37d4b79edc4f",
+    "name": "createBitbucketRepoPullRequest",
+    "inputs": {
+      "workspaceId": "gmc-demo",
+      "repoId": "bbc-demo",
+      "title": "Test PR: Atlassian MCP payload logging (2026-11-17)",
+      "sourceBranch": "test/mcp-payload-log-2026-11-17",
+      "targetBranch": "main",
+      "description": "Test pull request created through Atlassian MCP to verify the PostToolUse payload logging hook. Includes a one-line test fixture.",
+      "draft": true
+    }
+  },
+  "tool_response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"data\":{\"id\":3,\"title\":\"Test PR: Atlassian MCP payload logging (2026-11-17)\",\"state\":\"OPEN\",\"source\":{\"branch\":{\"name\":\"test/mcp-payload-log-2026-11-17\"}},\"destination\":{\"branch\":{\"name\":\"main\"}},\"links\":{\"html\":{\"href\":\"https://bitbucket.org/gmc-demo/bbc-demo/pull-requests/3\"}}}}"
+      }
+    ],
+    "isError": false
+  },
+  "tool_use_id": "exec-82e89b28-f670-4cbf-9d15-1c9c256e666d"
+}

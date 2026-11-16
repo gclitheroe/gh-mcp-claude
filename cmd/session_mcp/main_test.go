@@ -15,12 +15,20 @@ import (
 )
 
 const (
-	prURL       = "https://github.com/gclitheroe/hello-agent/pull/128"
+	prURL = "https://github.com/gclitheroe/hello-agent/pull/128"
+	// plainJSON is the form Claude Code sends for ${tool_response}: the
+	// GitHub object as a string, with the link under html_url.
 	plainJSON   = `{"html_url":"https://github.com/gclitheroe/hello-agent/pull/128","id":"5235365474"}`
 	escapedJSON = `"{\"html_url\":\"https://github.com/gclitheroe/hello-agent/pull/128\",\"id\":\"5235365474\"}"`
-	// contentBlocks is what a Claude Code PostToolUse hook substitutes for
-	// ${tool_response} after an MCP tool call.
+	// contentBlocks is a bare array of MCP content blocks, the form an
+	// earlier Claude Code capture had.
 	contentBlocks = `[{"type":"text","text":"{\"html_url\":\"https://github.com/gclitheroe/hello-agent/pull/128\",\"id\":\"5235365474\"}"}]`
+
+	// codexResult is the form Codex sends for ${tool_response}, copied from
+	// hook-samples/codex/posttool-use-mcp-pr-gh.json: the MCP CallToolResult
+	// object, whose GitHub object has the link under url.
+	codexURL    = "https://github.com/gclitheroe/hello-agent/pull/142"
+	codexResult = `{"content":[{"type":"text","text":"{\"id\":\"5319074384\",\"url\":\"https://github.com/gclitheroe/hello-agent/pull/142\"}"}]}`
 )
 
 func TestExtractHTMLURL(t *testing.T) {
@@ -38,8 +46,16 @@ func TestExtractHTMLURL(t *testing.T) {
 			in:   `[{"type":"image","data":"x"},{"type":"text","text":"{\"html_url\":\"https://github.com/gclitheroe/hello-agent/pull/128\"}"}]`,
 			want: prURL,
 		},
-		{name: "MCP content blocks without html_url", in: `[{"type":"text","text":"{\"id\":\"5235365474\"}"}]`, wantErr: true},
-		{name: "missing html_url", in: `{"id":"5235365474"}`, wantErr: true},
+		{name: "MCP content blocks without a link", in: `[{"type":"text","text":"{\"id\":\"5235365474\"}"}]`, wantErr: true},
+		{name: "Codex CallToolResult", in: codexResult, want: codexURL},
+		{name: "url without html_url", in: `{"id":"5319074384","url":"https://github.com/gclitheroe/hello-agent/pull/142"}`, want: codexURL},
+		{
+			name: "html_url wins over url",
+			in:   `{"url":"https://api.github.com/repos/gclitheroe/hello-agent/pulls/128","html_url":"https://github.com/gclitheroe/hello-agent/pull/128"}`,
+			want: prURL,
+		},
+		{name: "CallToolResult without a link", in: `{"content":[{"type":"text","text":"{\"id\":\"5319074384\"}"}]}`, wantErr: true},
+		{name: "missing html_url and url", in: `{"id":"5235365474"}`, wantErr: true},
 		{name: "invalid JSON", in: `not json`, wantErr: true},
 	}
 
@@ -59,6 +75,30 @@ func TestExtractHTMLURL(t *testing.T) {
 				t.Errorf("extractHTMLURL(%q) = %q, want %q", tt.in, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestToolResponseText(t *testing.T) {
+	// Claude Code's string is used as it is.
+	if got, err := toolResponseText(plainJSON); err != nil || got != plainJSON {
+		t.Errorf("toolResponseText(string) = %q, %v; want %q, nil", got, err, plainJSON)
+	}
+
+	// Codex's object is encoded back to JSON that extractHTMLURL reads.
+	var obj any
+	if err := json.Unmarshal([]byte(codexResult), &obj); err != nil {
+		t.Fatalf("unmarshal codexResult: %v", err)
+	}
+	text, err := toolResponseText(obj)
+	if err != nil {
+		t.Fatalf("toolResponseText(object) error: %v", err)
+	}
+	if url, err := extractHTMLURL(text); err != nil || url != codexURL {
+		t.Errorf("extractHTMLURL(toolResponseText(object)) = %q, %v; want %q, nil", url, err, codexURL)
+	}
+
+	if _, err := toolResponseText(nil); err == nil {
+		t.Error("toolResponseText(nil): want error")
 	}
 }
 
@@ -207,5 +247,38 @@ func TestGHPRToolOverHTTP(t *testing.T) {
 	}
 	if !res.IsError {
 		t.Errorf("gh_pr with no html_url: IsError = false, want true")
+	}
+}
+
+// TestGHPRToolCodexObjectOverHTTP passes tool_response as a JSON object, the
+// way a Codex mcp_tool hook sends "${tool_response}".
+func TestGHPRToolCodexObjectOverHTTP(t *testing.T) {
+	var logs syncBuffer
+	session := connect(t, &logs)
+
+	var toolResponse any
+	if err := json.Unmarshal([]byte(codexResult), &toolResponse); err != nil {
+		t.Fatalf("unmarshal codexResult: %v", err)
+	}
+
+	res, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "gh_pr",
+		Arguments: map[string]any{
+			"sessionID":     "codex-session",
+			"tool_response": toolResponse,
+		},
+	})
+	if err != nil {
+		t.Fatalf("call gh_pr: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("gh_pr returned a tool error: %v", res.GetError())
+	}
+
+	got := logs.String()
+	for _, want := range []string{"sessionID=codex-session", "html_url=" + codexURL} {
+		if !strings.Contains(got, want) {
+			t.Errorf("log %q does not contain %q", got, want)
+		}
 	}
 }

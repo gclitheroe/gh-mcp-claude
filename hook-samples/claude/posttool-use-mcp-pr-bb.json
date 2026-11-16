@@ -1,0 +1,38 @@
+{
+  "session_id": "aa1c0aac-473b-4284-ab3d-b15006d48417",
+  "transcript_path": "/Users/geoffclitheroe/.claude/projects/-Users-geoffclitheroe-Projects-bbc-demo/aa1c0aac-473b-4284-ab3d-b15006d48417.jsonl",
+  "cwd": "/Users/geoffclitheroe/Projects/bbc-demo",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-geoffclitheroe-Projects-bbc-demo/aa1c0aac-473b-4284-ab3d-b15006d48417/scratchpad",
+  "prompt_id": "e411c6fd-d2c4-4a08-a63e-6bd69ce834f5",
+  "permission_mode": "auto",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "mcp__atlassian__executeWrite",
+  "tool_input": {
+    "name": "createBitbucketRepoPullRequest",
+    "cloudId": "45e68d54-b44a-491d-8b94-37d4b79edc4f",
+    "inputs": {
+      "workspaceId": "gmc-demo",
+      "repoId": "bbc-demo",
+      "title": "Test PR via Atlassian MCP (hook logging)",
+      "sourceBranch": "test/mcp-pr-hook",
+      "targetBranch": "main",
+      "closeSourceBranch": true,
+      "description": "Test pull request created through the Atlassian MCP while a PostToolUse hook logs each tool call's payload.\n\nAdds a single `TEST-HOOK.md` file. Safe to decline.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+    }
+  },
+  "tool_response": [
+    {
+      "type": "text",
+      "text": "{\"data\":{\"id\":2,\"title\":\"Test PR via Atlassian MCP (hook logging)\",\"state\":\"OPEN\",\"source\":{\"branch\":{\"name\":\"test/mcp-pr-hook\"}},\"destination\":{\"branch\":{\"name\":\"main\"}},\"links\":{\"html\":{\"href\":\"https://bitbucket.org/gmc-demo/bbc-demo/pull-requests/2\"}}}}"
+    }
+  ],
+  "tool_use_id": "toolu_01SEViigoYw3i1mkbtzZmcix",
+  "duration_ms": 1500,
+  "mcp_server": {
+    "name": "atlassian",
+    "source": "local"
+  }
+}

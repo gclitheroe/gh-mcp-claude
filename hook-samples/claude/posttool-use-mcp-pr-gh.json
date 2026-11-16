@@ -1,0 +1,28 @@
+{
+  "session_id": "3f27d8ef-5be7-4648-83fb-b943d4c21d25",
+  "transcript_path": "/Users/geoffclitheroe/.claude/projects/-Users-geoffclitheroe-Projects-hello-agent/3f27d8ef-5be7-4648-83fb-b943d4c21d25.jsonl",
+  "cwd": "/Users/geoffclitheroe/Projects/hello-agent",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-geoffclitheroe-Projects-hello-agent/3f27d8ef-5be7-4648-83fb-b943d4c21d25/scratchpad",
+  "prompt_id": "d4018655-e71b-432c-9259-0f3e92cba5d9",
+  "permission_mode": "auto",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "mcp__github__create_pull_request",
+  "tool_input": {
+    "owner": "gclitheroe",
+    "repo": "hello-agent",
+    "title": "Add eleventh PR test file",
+    "head": "test-pr-2026-11-13-g",
+    "base": "main",
+    "body": "## Summary\n- Adds `PR_TEST_11.md`, a placeholder file for testing the pull request workflow.\n\nNo code changes.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+  },
+  "tool_response": "{\"html_url\":\"https://github.com/gclitheroe/hello-agent/pull/139\",\"id\":\"5284238282\"}",
+  "tool_use_id": "toolu_01Q8qRaenzCJyHpamg3KAEwc",
+  "duration_ms": 2314,
+  "mcp_server": {
+    "name": "github",
+    "source": "local"
+  }
+}

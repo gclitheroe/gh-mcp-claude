@@ -20,12 +20,24 @@ import (
 const addr = ":8080"
 
 type ghPRInput struct {
-	SessionID    string `json:"sessionID" jsonschema:"the session ID the pull request belongs to"`
-	ToolResponse string `json:"tool_response" jsonschema:"the GitHub tool response as a JSON string containing html_url"`
+	SessionID string `json:"sessionID" jsonschema:"the session ID the pull request belongs to"`
+
+	// ToolResponse is the GitHub create_pull_request tool's result, as a
+	// client's PostToolUse hook passes it for "${tool_response}". It is any,
+	// not string, because Claude Code and Codex send different JSON types
+	// for that same placeholder:
+	//
+	//   - Claude Code substitutes the result into the argument as a string.
+	//   - Codex keeps the placeholder's JSON type, so it sends the MCP
+	//     CallToolResult as an object.
+	//
+	// toolResponseText turns either into JSON text, and extractHTMLURL
+	// describes both formats in full.
+	ToolResponse any `json:"tool_response" jsonschema:"the GitHub create_pull_request result: a JSON string (from Claude Code) or an MCP CallToolResult object (from Codex) whose GitHub object holds html_url or url"`
 }
 
 type ghPROutput struct {
-	HTMLURL string `json:"html_url" jsonschema:"the pull request URL taken from tool_response"`
+	HTMLURL string `json:"html_url" jsonschema:"the pull request's web URL, taken from html_url or url in tool_response"`
 }
 
 type sessionTitleInput struct {
@@ -33,15 +45,52 @@ type sessionTitleInput struct {
 	Title     string `json:"title" jsonschema:"the session's new title"`
 }
 
-// extractHTMLURL returns the html_url field from a GitHub tool response. It
-// accepts these forms:
+// toolResponseText returns tool_response as JSON text for extractHTMLURL.
+// A string, which is what Claude Code sends, is used as it is. Anything else,
+// such as the CallToolResult object Codex sends, is encoded back to JSON.
+func toolResponseText(v any) (string, error) {
+	switch v := v.(type) {
+	case nil:
+		return "", errors.New("tool_response is missing")
+	case string:
+		return v, nil
+	default:
+		data, err := json.Marshal(v)
+		if err != nil {
+			return "", fmt.Errorf("tool_response can't be encoded as JSON: %w", err)
+		}
+		return string(data), nil
+	}
+}
+
+// extractHTMLURL returns the pull request's web URL from a GitHub
+// create_pull_request result, given as JSON text. It handles the
+// tool_response formats that Claude Code and Codex send from a PostToolUse
+// hook. hook-samples/claude/posttool-use-mcp-pr-gh.json and
+// hook-samples/codex/posttool-use-mcp-pr-gh.json in the repository are full
+// hook payloads from each.
 //
-//   - a JSON object: {"html_url":"..."}
-//   - that object double-encoded as a JSON string literal, with the outer
-//     quotes and escapes still present: "{\"html_url\":\"...\"}"
-//   - an array of MCP content blocks whose text holds the object:
-//     [{"type":"text","text":"{\"html_url\":\"...\"}"}]. This is what a
-//     Claude Code hook passes for ${tool_response} after an MCP tool call.
+// Claude Code sends the tool's text result as a string, so the text is the
+// GitHub object itself, with the link under html_url:
+//
+//	{"html_url":"https://github.com/gclitheroe/hello-agent/pull/139","id":"5284238282"}
+//
+// Codex sends the MCP CallToolResult object, which toolResponseText encodes
+// back to JSON. Its text content holds the GitHub object, and here the
+// GitHub server puts the link under url:
+//
+//	{"content":[{"type":"text","text":"{\"id\":\"5319074384\",\"url\":\"https://github.com/gclitheroe/hello-agent/pull/142\"}"}]}
+//
+// It also accepts these related forms:
+//
+//   - a bare array of MCP content blocks, which an earlier Claude Code
+//     capture had: [{"type":"text","text":"{\"html_url\":\"...\"}"}]
+//   - any of the above double-encoded as a JSON string literal, with the
+//     outer quotes and escapes still present: "{\"html_url\":\"...\"}"
+//
+// The link is html_url when the object has one, and url otherwise. In a full
+// GitHub pull request object, url is the API URL, so html_url has to win
+// when both are present.
 func extractHTMLURL(s string) (string, error) {
 	data := []byte(s)
 
@@ -63,21 +112,32 @@ func extractHTMLURL(s string) (string, error) {
 				return url, nil
 			}
 		}
-		return "", errors.New("tool_response has no text content with html_url")
+		return "", errors.New("tool_response has no text content with html_url or url")
 	}
 
 	var resp struct {
-		HTMLURL string `json:"html_url"`
+		HTMLURL string          `json:"html_url"`
+		URL     string          `json:"url"`
+		Content json.RawMessage `json:"content"`
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return "", fmt.Errorf("tool_response is not valid JSON: %w", err)
 	}
 
-	if resp.HTMLURL == "" {
-		return "", errors.New("tool_response has no html_url")
+	switch {
+	case resp.HTMLURL != "":
+		// The GitHub object as Claude Code receives it.
+		return resp.HTMLURL, nil
+	case resp.URL != "":
+		// The GitHub object as Codex receives it.
+		return resp.URL, nil
+	case len(resp.Content) > 0:
+		// An MCP CallToolResult, as Codex sends it: the GitHub object is in
+		// its content blocks.
+		return extractHTMLURL(string(resp.Content))
 	}
 
-	return resp.HTMLURL, nil
+	return "", errors.New("tool_response has no html_url or url")
 }
 
 func newServer(logger *slog.Logger) *mcp.Server {
@@ -85,9 +145,15 @@ func newServer(logger *slog.Logger) *mcp.Server {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "gh_pr",
-		Description: "Log the pull request URL (html_url in tool_response) for a session.",
+		Description: "Log a session's pull request URL. tool_response is the GitHub create_pull_request result as a Claude Code or Codex PostToolUse hook passes it; the URL is its html_url, or url.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in ghPRInput) (*mcp.CallToolResult, ghPROutput, error) {
-		url, err := extractHTMLURL(in.ToolResponse)
+		// Claude Code sends tool_response as a string and Codex as an
+		// object, so turn it into JSON text before looking for the URL.
+		text, err := toolResponseText(in.ToolResponse)
+		var url string
+		if err == nil {
+			url, err = extractHTMLURL(text)
+		}
 		if err != nil {
 			logger.WarnContext(ctx, "gh_pr", "sessionID", in.SessionID, "error", err)
 			return nil, ghPROutput{}, err
@@ -96,9 +162,11 @@ func newServer(logger *slog.Logger) *mcp.Server {
 		logger.InfoContext(ctx, "gh_pr", "sessionID", in.SessionID, "html_url", url)
 
 		// Reply with plain text rather than the default JSON text content.
-		// Claude Code parses an mcp_tool hook's text reply as hook output,
-		// and a JSON object that isn't valid hook output is reported as an
-		// error. The structured output still carries html_url.
+		// Claude Code and Codex both read an mcp_tool hook's text reply as
+		// hook output, as they would a command hook's stdout. Claude Code
+		// reports a JSON object that isn't valid hook output as an error,
+		// and Codex ignores plain text after PostToolUse. The structured
+		// output still carries html_url.
 		res := &mcp.CallToolResult{
 			Content: []mcp.Content{&mcp.TextContent{
 				Text: fmt.Sprintf("logged %s for session %s", url, in.SessionID),
