@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "gh-pr-session-codex",
+      "name": "pr-session-codex",
       "source": {
         "source": "local",
-        "path": "./plugins/gh-pr-session-codex"
+        "path": "./plugins/pr-session-codex"
       },
       "policy": {
         "installation": "AVAILABLE",

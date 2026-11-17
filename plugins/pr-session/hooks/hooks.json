@@ -15,6 +15,21 @@
             }
           }
         ]
+      },
+      {
+        "matcher": "mcp__atlassian__executeWrite",
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "session-mcp",
+            "tool": "bb_pr",
+            "input": {
+              "sessionID": "${session_id}",
+              "operation": "${tool_input.name}",
+              "tool_response": "${tool_response}"
+            }
+          }
+        ]
       }
     ]
   }
