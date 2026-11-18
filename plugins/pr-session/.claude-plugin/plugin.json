@@ -24,7 +24,7 @@
       "type": "string",
       "title": "Jira status",
       "description": "The status to move each new work item to. Its workflow needs a transition to a status with this name.",
-      "default": "Ready for Review"
+      "default": "Review"
     },
     "jira_site": {
       "type": "string",

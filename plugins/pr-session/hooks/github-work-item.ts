@@ -1,8 +1,8 @@
 import type { EngineInterface, On, PluginOptions } from 'claude-code'
 
 // After the GitHub MCP server creates a pull request, create a Jira work item
-// for it through Atlassian's MCP server, and move the item to a status (Ready
-// for Review by default). Claude Code only: Codex has no mods.
+// for it through Atlassian's MCP server, and move the item to a status (Review
+// by default). Claude Code only: Codex has no mods.
 
 // The GitHub MCP server's PR tool. The server must be configured as `github`,
 // the same name the gh_pr hook in hooks.json matches.
@@ -28,7 +28,7 @@ function readSettings(options: PluginOptions): Settings {
   return {
     projectKey: text('jira_project_key', ''),
     issueType: text('jira_issue_type', 'Task'),
-    status: text('jira_status', 'Ready for Review'),
+    status: text('jira_status', 'Review'),
     site: text('jira_site', ''),
   }
 }

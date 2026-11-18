@@ -26,7 +26,9 @@ const TRANSITIONS = {
   data: {
     transitions: [
       { id: '11', name: 'To Do', to: { name: 'To Do' } },
-      { id: '41', name: 'Send for review', to: { name: 'Ready for Review' } },
+      { id: '41', name: 'Send for review', to: { name: 'Review' } },
+      // The match is on the whole status name, so Review never picks this one.
+      { id: '51', name: 'Ready', to: { name: 'Ready for Review' } },
       { id: '31', name: 'Done', to: { name: 'Done' } },
     ],
   },
@@ -65,10 +67,10 @@ const ALL: Answers = {
   getAccessibleAtlassianResources: ONE_SITE,
   createJiraIssue: CREATED,
   listJiraIssueTransitions: TRANSITIONS,
-  transitionJiraIssue: { data: { status: { name: 'Ready for Review' } } },
+  transitionJiraIssue: { data: { status: { name: 'Review' } } },
 }
 
-test('creates a work item for the PR and moves it to Ready for Review', { options: { jira_project_key: 'DEMO' } }, async ($, on) => {
+test('creates a work item for the PR and moves it to Review', { options: { jira_project_key: 'DEMO' } }, async ($, on) => {
   const { calls, toasts } = stand(on, ALL)
 
   const ran = await $.tool.call(PR_CALL)
@@ -92,8 +94,8 @@ test('creates a work item for the PR and moves it to Ready for Review', { option
   // The PR's own result is untouched; the model is told about the work item.
   expect(ran.text).toBe(PR_TEXT)
   expect(ran.context?.join('\n')).toContain(`DEMO-7 (${SITE}/browse/DEMO-7)`)
-  expect(ran.context?.join('\n')).toContain('moved it to "Ready for Review"')
-  expect(toasts).toEqual([`pr-session: created DEMO-7 for ${PR_LINK} (Ready for Review)`])
+  expect(ran.context?.join('\n')).toContain('moved it to "Review"')
+  expect(toasts).toEqual([`pr-session: created DEMO-7 for ${PR_LINK} (Review)`])
 })
 
 test('a second call for the same PR creates nothing more', { options: { jira_project_key: 'DEMO' } }, async ($, on) => {
@@ -178,7 +180,7 @@ test('no transition to the status: the item stays in its first status', { option
 
   expect(calls.map(c => c.tool)).not.toContain('transitionJiraIssue')
   expect(toasts[0]).toContain('created DEMO-7')
-  expect(toasts[0]).toContain('no transition to "Ready for Review"')
+  expect(toasts[0]).toContain('no transition to "Review"')
   expect(ran.context?.join('\n')).toContain('left it in its first status')
 })
 
