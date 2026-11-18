@@ -1,10 +1,36 @@
 {
   "name": "pr-session",
-  "version": "0.3.0",
-  "description": "Send session details to session_mcp: the PR URL after the GitHub MCP server creates a pull request or the Atlassian MCP server creates a Bitbucket pull request, and the new title after /rename.",
+  "version": "0.4.0",
+  "description": "Send session details to session_mcp: the PR URL after the GitHub MCP server creates a pull request or the Atlassian MCP server creates a Bitbucket pull request, and the new title after /rename. Also creates a Jira work item, through the Atlassian MCP server, for each GitHub pull request.",
   "author": {
     "name": "Geoff Clitheroe"
   },
   "repository": "https://github.com/gclitheroe/gh-mcp-claude",
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "userConfig": {
+    "jira_project_key": {
+      "type": "string",
+      "title": "Jira project key",
+      "description": "The Jira project to create a work item in for each GitHub pull request, such as PROJ. Leave empty to create no work items.",
+      "default": ""
+    },
+    "jira_issue_type": {
+      "type": "string",
+      "title": "Jira work item type",
+      "description": "The type of work item to create, such as Task, Story or Bug.",
+      "default": "Task"
+    },
+    "jira_status": {
+      "type": "string",
+      "title": "Jira status",
+      "description": "The status to move each new work item to. Its workflow needs a transition to a status with this name.",
+      "default": "Ready for Review"
+    },
+    "jira_site": {
+      "type": "string",
+      "title": "Atlassian site",
+      "description": "The Atlassian site for the work items, as a URL, hostname (example.atlassian.net) or cloudId. Leave empty to use the one site with Jira your login can reach.",
+      "default": ""
+    }
+  }
 }

@@ -1,4 +1,5 @@
 import type { Register } from 'claude-code'
+import { registerGitHubWorkItems } from './github-work-item'
 
 // The MCP server and tool that receive the title. SERVER must match the name
 // session_mcp was added under (`claude mcp add ... session-mcp ...`), the
@@ -6,7 +7,10 @@ import type { Register } from 'claude-code'
 const SERVER = 'session-mcp'
 const TOOL = 'session_title'
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  // Create a Jira work item for each GitHub PR (see github-work-item.ts).
+  registerGitHubWorkItems(on, options)
+
   // Wrap /rename: let the built-in rename run, then send the new title to
   // session_mcp. A bare /rename names the session itself, so its args are
   // empty and there is no title to send. If this hook fails, .catch still

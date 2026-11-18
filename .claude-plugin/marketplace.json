@@ -8,7 +8,7 @@
     {
       "name": "pr-session",
       "source": "./plugins/pr-session",
-      "description": "Send session details to session_mcp: the PR URL after the GitHub MCP server creates a pull request or the Atlassian MCP server creates a Bitbucket pull request, and the new title after /rename."
+      "description": "Send session details to session_mcp: the PR URL after the GitHub MCP server creates a pull request or the Atlassian MCP server creates a Bitbucket pull request, and the new title after /rename. Also creates a Jira work item, through the Atlassian MCP server, for each GitHub pull request."
     }
   ]
 }

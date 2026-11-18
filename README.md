@@ -138,13 +138,14 @@ go test ./...
 
 ## pr-session plugin
 
-`plugins/pr-session` is a Claude Code plugin that sends session details to `session_mcp`. It does three things:
+`plugins/pr-session` is a Claude Code plugin that sends session details to `session_mcp`, and makes Jira work items for GitHub PRs. It does four things:
 
 - **GitHub PRs.** A PostToolUse `mcp_tool` hook runs after the GitHub MCP server's `create_pull_request` tool (`mcp__github__create_pull_request`) succeeds. It calls `gh_pr` with the session ID and the tool's response, so the server logs the new PR's URL for that session.
 - **Bitbucket PRs.** A second PostToolUse `mcp_tool` hook runs after the Atlassian MCP server's `executeWrite` tool (`mcp__atlassian__executeWrite`) succeeds. It calls `bb_pr` with the session ID, the operation (`tool_input.name`) and the tool's response. The server logs the new PR's URL when the operation is `createBitbucketRepoPullRequest`, and skips any other write.
 - **Session titles.** A mod (`hooks/register.ts`) wraps the built-in `/rename` command. After the rename runs, it calls `session_title` with the session ID and the new title.
+- **Jira work items for GitHub PRs.** The mod also watches `mcp__github__create_pull_request` (`hooks/github-work-item.ts`). After a PR is created, it uses Atlassian's MCP server to create a Jira work item from the PR's title and description, with a link to the PR, and moves it to Ready for Review. See [Jira work items](#jira-work-items). It does nothing until you set a Jira project.
 
-All three are registered in `hooks/hooks.json`, the hooks under `hooks` and the mod under `modules`.
+The two `mcp_tool` hooks are registered in `hooks/hooks.json` under `hooks`, and the mod under `modules`. Only this Claude Code plugin makes Jira work items. The [Codex plugin](#pr-session-codex-plugin) has no mod.
 
 The title is only sent when you type `/rename <title>`. Two kinds of rename aren't sent:
 
@@ -173,7 +174,44 @@ The plugin doesn't install or configure `session_mcp` or the MCP servers it watc
 
      Then sign in to Atlassian from `/mcp`.
 
+     For Jira work items, `atlassian` has to be available where you create GitHub PRs, so add it with `-s user` to make it available in every project.
+
 Start `session_mcp` before Claude Code. If `session-mcp` isn't configured, isn't running, or has a different name, nothing is logged, but the PRs, the other Atlassian writes and the renames still go through. The hooks report a non-blocking error, the Bitbucket one after every Atlassian write, and the mod shows a short notice.
+
+### Jira work items
+
+After the GitHub MCP server creates a pull request, the mod:
+
+1. Finds the Atlassian site: `jira_site` if it's set, or else the one site with Jira that your Atlassian login can reach, from `getAccessibleAtlassianResources`.
+2. Creates a work item with `createJiraIssue` in the `jira_project_key` project, of type `jira_issue_type`:
+   - The summary is the PR's title.
+   - The description is the PR's description, then a line with the PR's link.
+3. Moves it to `jira_status` (Ready for Review by default). Jira creates a work item in its workflow's first status, so the mod lists the item's transitions (`listJiraIssueTransitions`) and makes the one whose target status has that name, ignoring case.
+4. Shows a notice, such as `created PROJ-12 for https://github.com/... (Ready for Review)`, and tells Claude the work item's key and link, after the PR's own result.
+
+These are the plugin's settings:
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `jira_project_key` | empty | The Jira project to create work items in, such as `PROJ`. While it's empty, no work items are created, and the first PR in a session shows a notice saying so. |
+| `jira_issue_type` | `Task` | The work item type, such as `Task`, `Story` or `Bug`. |
+| `jira_status` | `Ready for Review` | The status to move each new work item to. |
+| `jira_site` | empty | The Atlassian site as a URL, hostname (`example.atlassian.net`) or cloudId. Leave it empty if your login reaches one Jira site. Set it if it reaches several. |
+
+Set them in `/config`, or from the command line:
+
+```sh
+echo '{"jira_project_key":"PROJ"}' | claude plugin configure pr-session@gh-mcp-demo --values-stdin
+```
+
+Run `claude plugin configure pr-session@gh-mcp-demo` to see the current values.
+
+How it behaves:
+
+- **The PR comes first.** The work item is made after the PR call returns, and nothing about the PR's result changes. If a Jira step fails, the mod shows a notice with the reason, and the PR is unaffected. For example, it fails if `atlassian` isn't configured or the project key is wrong.
+- **No matching status.** If the work item's workflow has no transition to `jira_status`, the item stays in its first status, and the notice says so. Add the status to the project's workflow, or set `jira_status` to one it has.
+- **Each PR once.** Each PR gets one work item per session, even if the hook runs again for it.
+- **A short delay.** Claude reads the PR's result after the Jira calls finish, usually a second or two later.
 
 ### Install
 
@@ -207,12 +245,15 @@ claude plugin marketplace update gh-mcp-demo
 claude plugin install pr-session@gh-mcp-demo
 ```
 
-### Validate
+### Validate and test
 
 ```sh
 claude plugin validate plugins/pr-session
 claude plugin validate .
+claude plugin test plugins/pr-session
 ```
+
+`claude plugin test` runs the mod's tests in `plugins/pr-session/tests/`. They stand in for the GitHub and Atlassian servers, so they create nothing.
 
 ### Check it works
 
@@ -222,6 +263,8 @@ Create a PR through the GitHub MCP server, or a Bitbucket PR through the Atlassi
 INFO gh_pr sessionID=3f27d8ef-5be7-4648-83fb-b943d4c21d25 html_url=https://github.com/gclitheroe/hello-agent/pull/139
 INFO bb_pr sessionID=aa1c0aac-473b-4284-ab3d-b15006d48417 html_url=https://bitbucket.org/gmc-demo/bbc-demo/pull-requests/2
 ```
+
+With `jira_project_key` set, a GitHub PR also shows a notice naming its new Jira work item, and the work item appears in that project, in the `jira_status` status.
 
 ## pr-session-codex plugin
 
